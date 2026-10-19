@@ -12,8 +12,6 @@ Initial release.
   demands-attention exception that mutter adds unconditionally.
 - "All workspaces" mode (`workspace == null`) is left untouched.
 - Sticky ("on all workspaces") windows are still listed.
-- Preferences page on top of GNOME's own switcher settings, including the
-  window-switcher key that GNOME Settings does not expose.
 - `tools/demo-attention-window.sh` to reproduce the condition on X11/XWayland.
 
 [1.0.0]: https://github.com/toocels/strict-workspace-switcher/releases/tag/v1.0.0

@@ -9,9 +9,9 @@
 
 UUID      := strict-workspace-switcher@toocels
 TARGET    := $(HOME)/.local/share/gnome-shell/extensions/$(UUID)
-SOURCES   := metadata.json extension.js prefs.js tabListFilter.js
+SOURCES   := metadata.json extension.js tabListFilter.js
 TESTS     := tests/tab-list-filter.test.js
-# Modules beyond metadata.json/extension.js/prefs.js must be listed explicitly,
+# Modules beyond metadata.json/extension.js must be listed explicitly,
 # otherwise gnome-extensions pack leaves them out of the zip.
 EXTRA     := --extra-source=tabListFilter.js
 

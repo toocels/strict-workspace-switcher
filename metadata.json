@@ -1,7 +1,7 @@
 {
   "uuid": "strict-workspace-switcher@toocels",
   "name": "Strict Workspace Switcher",
-  "description": "Makes the switchers' \"current workspace only\" mode strict: a window on another workspace is never injected into Alt+Tab, not even when it demands attention.",
+  "description": "Makes the switchers' \"current workspace only\" mode strict: a window on another workspace is never listed in Alt+Tab or Super+Tab, not even when it demands attention. No settings of its own.",
   "shell-version": ["45", "46", "47", "48", "49", "50", "51"],
   "url": "https://github.com/toocels/strict-workspace-switcher",
   "version": 1
