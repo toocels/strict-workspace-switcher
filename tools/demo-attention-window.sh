@@ -7,6 +7,11 @@
 #
 # X11 / XWayland only: it drives the window through EWMH (_NET_WM_DESKTOP and
 # _NET_WM_STATE_DEMANDS_ATTENTION), which mutter only exposes for X11 windows.
+# The window you point it at therefore has to be an X11/XWayland one - most GTK
+# apps are Wayland-native on a Wayland session, so force them, e.g.
+#
+#     GDK_BACKEND=x11 nautilus /tmp/attention-demo &
+#
 # For a Wayland-native window use the Looking Glass snippet from the README.
 #
 # Requirements: xdotool, xprop (x11-utils)
@@ -74,9 +79,31 @@ xprop -id "$wid_dec" _NET_WM_DESKTOP >/dev/null 2>&1 || die "window $wid does no
 title="$(xdotool getwindowname "$wid_dec" 2>/dev/null || echo '?')"
 
 # --- current workspace ------------------------------------------------------
+#
+# mutter only writes _NET_CURRENT_DESKTOP when the active workspace changes, so
+# on a fresh session (or any session where you have not switched workspaces
+# yet) the property is simply not there. Fall back to the desktop of the
+# focused window, and last to the target's own desktop.
 
-cur="$(xprop -root _NET_CURRENT_DESKTOP | grep -o '[0-9]\+$')"
-ndesks="$(xprop -root _NET_NUMBER_OF_DESKTOPS | grep -o '[0-9]\+$')"
+desktop_of() {
+    xprop -id "$1" _NET_WM_DESKTOP 2>/dev/null | grep -o '[0-9]\+$' | head -n1
+}
+
+ndesks="$(xprop -root _NET_NUMBER_OF_DESKTOPS | grep -o '[0-9]\+$' | head -n1)"
+
+assumed=""
+cur="$(xdotool get_desktop 2>/dev/null || true)"
+case "$cur" in ''|*[!0-9]*) cur="" ;; esac
+
+if [ -z "$cur" ]; then
+    active="$(xprop -root _NET_ACTIVE_WINDOW 2>/dev/null | grep -o '0x[0-9a-f]*' | head -n1)"
+    [ -n "$active" ] && cur="$(desktop_of "$((active))")"
+fi
+
+if [ -z "$cur" ]; then
+    cur="$(desktop_of "$wid_dec")"
+    assumed=1
+fi
 
 # --- clear mode -------------------------------------------------------------
 
@@ -121,6 +148,15 @@ xdotool windowstate --add demands_attention "$wid_dec" || die "could not set the
 sleep 0.5
 
 state="$(xprop -id "$wid_dec" _NET_WM_STATE 2>/dev/null || true)"
+
+if [ -n "$assumed" ]; then
+    cat <<EOF
+note: mutter has not published _NET_CURRENT_DESKTOP in this session yet (it only
+      does so once you switch workspaces), so "you are" below is assumed from
+      the window you pointed at. If it is wrong, switch workspaces once and
+      re-run.
+EOF
+fi
 
 cat <<EOF
 window:   "$title" (id $wid)
