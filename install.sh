@@ -43,17 +43,14 @@ if gnome-extensions list 2>/dev/null | grep -qx "$UUID"; then
 The running GNOME Shell already knows this extension and it is enabled.
 
 Note: GNOME caches extension code for the lifetime of the session, so if you
-reinstalled over an older copy, the new files only take effect after a shell
-restart (Wayland: log out and back in; X11: Alt+F2, type "r", Enter).
+reinstalled over an older copy, the new files only take effect after you log out
+and back in.
 EOF
 else
     cat <<EOF
 
 GNOME Shell only scans the extensions directory at startup, so a newly
-installed extension needs one shell restart:
-
-  * Wayland: log out and back in
-  * X11:     press Alt+F2, type "r", press Enter
+installed extension needs one log out and back in.
 
 Then enable it:
 

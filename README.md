@@ -5,8 +5,8 @@
 ![GNOME Shell](https://img.shields.io/badge/GNOME%20Shell-45%E2%80%9351-blue)
 ![License](https://img.shields.io/badge/license-GPL--3.0--or--later-green)
 
-GNOME Shell 45–51 · Wayland and X11 · no settings, no configuration, no
-dependencies · GPL-3.0-or-later
+GNOME Shell 45–51 · Wayland · no settings, no configuration, no dependencies ·
+GPL-3.0-or-later
 
 ---
 
@@ -24,31 +24,6 @@ only*. Then:
 It happens again every time that app pings you, and GNOME has **no setting to
 stop it**. The “*window title* is ready” notification is not the annoying part —
 the switcher entry is.
-
-### See it for yourself
-
-`tools/demo-attention-window.sh` reproduces exactly that, so you can watch it
-happen before changing anything:
-
-```bash
-tools/demo-attention-window.sh
-```
-
-It takes an X11 window (starting its own if you have none open), sends it to
-another workspace, sets its demands-attention flag the way a notification-happy
-app would, and prints the EWMH state it just set so you can see the flag is
-really there. Then you press Alt+Tab — stock GNOME lists it **first**, even
-though you never left your workspace. Same window, same flag, with the
-extension enabled: gone. Clean up with:
-
-```bash
-tools/demo-attention-window.sh --clear
-```
-
-Needs `xdotool` and `xprop` (`glxgears` from mesa-utils only to start the demo
-window), and has to drive an **X11/XWayland** window: Wayland-native windows
-cannot be poked from outside the compositor. For one of those see the [Looking
-Glass snippet](#verify-it-works).
 
 ## What this extension does
 
@@ -79,14 +54,11 @@ cd strict-workspace-switcher
 ./install.sh
 ```
 
-Then reload GNOME Shell:
-
-- **Wayland:** log out and back in. (GNOME only scans the extensions folder at
-  startup, so a brand new extension cannot be picked up without one restart. If
-  the shell already knows the extension, `install.sh` enables it right away and
-  only a *code* change needs that restart — GNOME caches extension code for the
-  lifetime of the session.)
-- **X11:** `Alt+F2`, type `r`, `Enter`.
+Then reload GNOME Shell: **log out and back in.** GNOME only scans the
+extensions folder at startup, so a brand new extension cannot be picked up
+without one restart. (If the shell already knows the extension, `install.sh`
+enables it right away and only a *code* change needs that restart — GNOME caches
+extension code for the lifetime of the session.)
 
 Then enable it — it is one line, and it is the only thing you ever have to do:
 
@@ -144,14 +116,8 @@ w.activate(0);                          // timestamp 0 + other workspace -> dema
 w.demands_attention                     // -> true
 ```
 
-On an X11 session, or for an XWayland window, the bundled helper does the same
-and prints the window's EWMH state so you can see it really is demanding
-attention (run it with a WINDOW argument to use a window of your own instead of
-the one it starts):
-
-```bash
-tools/demo-attention-window.sh
-```
+This is the only way to do it from outside: no other process can set the
+attention flag on a Wayland window, the compositor owns it.
 
 **2. Press Alt+Tab without leaving your workspace.**
 
@@ -163,8 +129,9 @@ gnome-extensions disable strict-workspace-switcher@toocels   # looks like stock 
 gnome-extensions enable  strict-workspace-switcher@toocels   # strict again
 ```
 
-Enable/disable is instant, so you can A/B it live. Clean up with
-`tools/demo-attention-window.sh --clear`.
+Enable/disable is instant, so you can A/B it live. When you are done, clear the
+flag again with `w.activate(global.get_current_time())` — focusing a window
+always clears it.
 
 ---
 
@@ -267,14 +234,14 @@ Patching at that level, rather than per popup, means:
 
 ## Compatibility
 
-- GNOME Shell **45–51**, Wayland and X11 sessions.
+- GNOME Shell **45–51** on **Wayland**.
 - Developed and tested on **GNOME Shell 51.1** (Arch Linux, Wayland).
 
 ## Troubleshooting
 
 **“I enabled it, but nothing changed.”** Check it is loaded (a freshly installed
-extension needs one log out/in on Wayland), and that the matching switcher
-setting above is on:
+extension needs one log out/in), and that the matching switcher setting above is
+on:
 
 ```bash
 gnome-extensions info strict-workspace-switcher@toocels
@@ -308,7 +275,6 @@ metadata.json                     extension metadata (uuid, shell-version)
 extension.js                      enable/disable, installs the wrapper
 tabListFilter.js                  the filtering logic (no GNOME imports -> unit-tested)
 tests/tab-list-filter.test.js     unit tests, no session or display needed
-tools/demo-attention-window.sh    reproduce the condition on X11/XWayland
 install.sh / uninstall.sh         install and remove for the current user
 Makefile                          install / pack / test / check / uninstall
 ```
