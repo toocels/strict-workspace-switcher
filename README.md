@@ -75,13 +75,16 @@ You keep the notification. You lose the hijacked Alt+Tab.
 ```bash
 git clone https://github.com/toocels/strict-workspace-switcher
 cd strict-workspace-switcher
-make install
+./install.sh
 ```
 
 Then reload GNOME Shell:
 
 - **Wayland:** log out and back in. (GNOME only scans the extensions folder at
-  startup, so a brand new extension cannot be picked up without one restart.)
+  startup, so a brand new extension cannot be picked up without one restart. If
+  the shell already knows the extension, `install.sh` enables it right away and
+  only a *code* change needs that restart — GNOME caches extension code for the
+  lifetime of the session.)
 - **X11:** `Alt+F2`, type `r`, `Enter`.
 
 Then enable it — it is one line, and it is the only thing you ever have to do:
@@ -287,7 +290,8 @@ always-on-top dashboards) are on your workspace too, so they are kept.
 ## Uninstall
 
 ```bash
-make uninstall          # or: gnome-extensions uninstall strict-workspace-switcher@toocels
+./uninstall.sh          # or: make uninstall
+                        # or: gnome-extensions uninstall strict-workspace-switcher@toocels
 ```
 
 Your GNOME switcher settings are left exactly as they were — they belong to you,
@@ -303,6 +307,7 @@ extension.js                      enable/disable, installs the wrapper
 tabListFilter.js                  the filtering logic (no GNOME imports -> unit-tested)
 tests/tab-list-filter.test.js     unit tests, no session or display needed
 tools/demo-attention-window.sh    reproduce the condition on X11/XWayland
+install.sh / uninstall.sh         install and remove for the current user
 Makefile                          install / pack / test / check / uninstall
 ```
 

@@ -1,11 +1,12 @@
 # Strict Workspace Switcher — build helpers
 #
 #   make install    copy the extension into ~/.local/share/gnome-shell/extensions
+#                   (runs the tests first; same as ./install.sh)
+#   make uninstall  remove the installed copy (same as ./uninstall.sh)
 #   make pack       build dist/<uuid>.shell-extension.zip (for extensions.gnome.org
 #                   or `gnome-extensions install`)
 #   make test       run the unit tests (gjs, no session needed)
 #   make check      sanity-check metadata.json
-#   make uninstall  remove the installed copy
 
 UUID      := strict-workspace-switcher@toocels
 TARGET    := $(HOME)/.local/share/gnome-shell/extensions/$(UUID)
@@ -27,20 +28,10 @@ test:
 	@gjs --module $(TESTS)
 
 install: check test
-	@rm -rf "$(TARGET)"
-	@mkdir -p "$(TARGET)"
-	@cp $(SOURCES) "$(TARGET)/"
-	@echo "installed: $(TARGET)"
-	@echo
-	@echo "GNOME Shell only scans the extensions directory at startup, so on Wayland"
-	@echo "log out and back in (on X11 you can press Alt+F2, type 'r', Enter). Then:"
-	@echo
-	@echo "  gnome-extensions enable $(UUID)"
+	@./install.sh
 
 uninstall:
-	-@gnome-extensions disable $(UUID) >/dev/null 2>&1 || true
-	@rm -rf "$(TARGET)"
-	@echo "removed: $(TARGET)"
+	@./uninstall.sh
 
 pack: check test
 	@rm -rf dist
