@@ -31,23 +31,24 @@ the switcher entry is.
 happen before changing anything:
 
 ```bash
-mkdir -p /tmp/attention-demo && GDK_BACKEND=x11 nautilus /tmp/attention-demo &
-tools/demo-attention-window.sh "attention-demo"
+tools/demo-attention-window.sh
 ```
 
-It sends that window to another workspace, sets its demands-attention flag the
-way a notification-happy app would, and prints the EWMH state it just set so you
-can see the flag is really there. Then you press Alt+Tab — stock GNOME lists it
-**first**, even though you never left your workspace. Same window, same flag,
-with the extension enabled: gone. Clean up with:
+It takes an X11 window (starting its own if you have none open), sends it to
+another workspace, sets its demands-attention flag the way a notification-happy
+app would, and prints the EWMH state it just set so you can see the flag is
+really there. Then you press Alt+Tab — stock GNOME lists it **first**, even
+though you never left your workspace. Same window, same flag, with the
+extension enabled: gone. Clean up with:
 
 ```bash
-tools/demo-attention-window.sh --clear "attention-demo"
+tools/demo-attention-window.sh --clear
 ```
 
-Needs `xdotool` and `xprop`, and the window must be an X11/XWayland one — many
-GTK apps are Wayland-native, hence `GDK_BACKEND=x11` above. For a Wayland-native
-window see the [Looking Glass snippet](#verify-it-works).
+Needs `xdotool` and `xprop` (`glxgears` from mesa-utils only to start the demo
+window), and has to drive an **X11/XWayland** window: Wayland-native windows
+cannot be poked from outside the compositor. For one of those see the [Looking
+Glass snippet](#verify-it-works).
 
 ## What this extension does
 
@@ -143,12 +144,13 @@ w.activate(0);                          // timestamp 0 + other workspace -> dema
 w.demands_attention                     // -> true
 ```
 
-On X11/XWayland you can also use the bundled helper, which prints the window's
-EWMH state so you can see it really is demanding attention:
+On an X11 session, or for an XWayland window, the bundled helper does the same
+and prints the window's EWMH state so you can see it really is demanding
+attention (run it with a WINDOW argument to use a window of your own instead of
+the one it starts):
 
 ```bash
-mkdir -p /tmp/attention-demo && GDK_BACKEND=x11 nautilus /tmp/attention-demo &
-tools/demo-attention-window.sh "attention-demo"
+tools/demo-attention-window.sh
 ```
 
 **2. Press Alt+Tab without leaving your workspace.**
@@ -162,7 +164,7 @@ gnome-extensions enable  strict-workspace-switcher@toocels   # strict again
 ```
 
 Enable/disable is instant, so you can A/B it live. Clean up with
-`tools/demo-attention-window.sh --clear "attention-demo"`.
+`tools/demo-attention-window.sh --clear`.
 
 ---
 
