@@ -12,6 +12,7 @@ Initial release.
   demands-attention exception that mutter adds unconditionally.
 - "All workspaces" mode (`workspace == null`) is left untouched.
 - Sticky ("on all workspaces") windows are still listed.
+- `install.sh` / `uninstall.sh` for the current user, no make or root required.
 - `tools/demo-attention-window.sh` to reproduce the condition on X11/XWayland.
 
 [1.0.0]: https://github.com/toocels/strict-workspace-switcher/releases/tag/v1.0.0
