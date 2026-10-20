@@ -7,16 +7,23 @@
 #
 # X11 / XWayland only: it drives the window through EWMH (_NET_WM_DESKTOP and
 # _NET_WM_STATE_DEMANDS_ATTENTION), which mutter only exposes for X11 windows.
-# The window you point it at therefore has to be an X11/XWayland one - most GTK
-# apps are Wayland-native on a Wayland session, so force them, e.g.
+# A Wayland-native window cannot be driven from outside the compositor — for
+# one of those use the Looking Glass snippet from the README.
 #
-#     GDK_BACKEND=x11 nautilus /tmp/attention-demo &
+# Which window does it use? The WINDOW you name, else the first X11 window it
+# can find (a window titled "attention-demo", then Nautilus, then glxgears).
+# If it finds none it starts its own demo window, so this works even on a
+# session where every app you have open is Wayland-native. Note that
+# "GDK_BACKEND=x11 nautilus" does NOT give you an X11 window when Nautilus is
+# already running — the new process just hands the request to the running
+# Wayland instance.
 #
-# For a Wayland-native window use the Looking Glass snippet from the README.
-#
-# Requirements: xdotool, xprop (x11-utils)
+# Requirements: xdotool, xprop (x11-utils); glxgears (mesa-utils) only when a
+# demo window has to be started.
 
 set -euo pipefail
+
+DEMO_TITLE="attention-demo"
 
 usage() {
     cat <<'EOF'
@@ -24,8 +31,9 @@ Usage: demo-attention-window.sh [OPTION] [WINDOW]
 
 Move WINDOW to another workspace and make it demand attention.
 
-WINDOW is an X11 window id (0x…) or a title substring. If omitted, the first
-Nautilus window is used.
+WINDOW is an X11 window id (0x…) or a title/class substring. If omitted, the
+first usable X11 window is used (a window titled "attention-demo", else
+Nautilus, else glxgears) and, if there is none, a demo window is started.
 
 Options:
   --clear   Undo: drop the demands-attention flag and bring the window back to
@@ -33,7 +41,7 @@ Options:
   -h, --help
 
 Examples:
-  tools/demo-attention-window.sh                 # first Nautilus window
+  tools/demo-attention-window.sh                 # find or start a demo window
   tools/demo-attention-window.sh "attention-demo"
   tools/demo-attention-window.sh 0x1800004
   tools/demo-attention-window.sh --clear "attention-demo"
@@ -61,22 +69,83 @@ while [ $# -gt 0 ]; do
     shift
 done
 
-# --- find the target window -------------------------------------------------
+# --- window lookup ----------------------------------------------------------
 
-if [ -n "$spec" ]; then
-    case "$spec" in
-        0x*) wid="$spec" ;;
-        *) wid="$(xdotool search --name "$spec" 2>/dev/null | head -n1 || true)" ;;
-    esac
+no_window_hint() {
+    cat >&2 <<'EOF'
+       No X11 window matched. Windows of Wayland-native apps cannot be driven
+       from here, and "GDK_BACKEND=x11 <app>" only works if that app is not
+       already running (otherwise the request goes to the running Wayland
+       instance). Either name an X11/XWayland window, or run this without a
+       WINDOW argument so it starts its own demo window. For a Wayland-native
+       window, use the Looking Glass snippet from the README.
+EOF
+}
+
+# Prints a decimal window id (or nothing).
+lookup() {
+    local spec="$1" id=""
+
+    if [ -n "$spec" ]; then
+        case "$spec" in
+            0x*|0X*) printf '%d' "$spec"; return 0 ;;
+        esac
+        id="$(xdotool search --name  "$spec" 2>/dev/null | head -n1 || true)"
+        [ -n "$id" ] || id="$(xdotool search --class "$spec" 2>/dev/null | head -n1 || true)"
+    else
+        for candidate in "$DEMO_TITLE" nautilus glxgears; do
+            id="$(xdotool search --name  "$candidate" 2>/dev/null | head -n1 || true)"
+            [ -n "$id" ] || id="$(xdotool search --class "$candidate" 2>/dev/null | head -n1 || true)"
+            [ -n "$id" ] && break
+        done
+    fi
+
+    printf '%s' "$id"
+}
+
+# Wait for `lookup WINDOW` to find something, up to ~5 seconds: the caller may
+# have started the window a moment ago.
+lookup_wait() {
+    local spec="$1" id
+    for _ in $(seq 1 20); do
+        id="$(lookup "$spec")"
+        [ -n "$id" ] && { printf '%s' "$id"; return 0; }
+        sleep 0.25
+    done
+    return 0
+}
+
+wid="$(lookup_wait "$spec")"
+
+# Nothing usable and nothing to undo: make our own demo window.
+if [ -z "$wid" ] && [ "$clear_flag" -eq 0 ]; then
+    command -v glxgears >/dev/null 2>&1 || {
+        echo "error: no X11 window found to use, and glxgears is not installed" >&2
+        echo "       (install mesa-utils, or name an X11 window)." >&2
+        no_window_hint
+        exit 1
+    }
+
+    echo "no usable X11 window found — starting one (glxgears)"
+    glxgears >/dev/null 2>&1 &
+    wid="$(lookup_wait glxgears)"
+    [ -n "$wid" ] || die "glxgears did not open a window"
+    xdotool set_window --name "$DEMO_TITLE" "$wid" 2>/dev/null || true
+    launched=1
 else
-    wid="$(xdotool search --class nautilus 2>/dev/null | head -n1 || true)"
+    launched=0
 fi
 
-[ -n "$wid" ] || die "no window found${spec:+ for '$spec'} (pass a window id or a title substring)"
-wid_dec=$((wid))
-xprop -id "$wid_dec" _NET_WM_DESKTOP >/dev/null 2>&1 || die "window $wid does not exist"
+if [ -z "$wid" ]; then
+    echo "error: no window found${spec:+ for '$spec'}" >&2
+    no_window_hint
+    exit 1
+fi
 
-title="$(xdotool getwindowname "$wid_dec" 2>/dev/null || echo '?')"
+xprop -id "$wid" _NET_WM_DESKTOP >/dev/null 2>&1 || die "window $wid does not exist"
+
+title="$(xdotool getwindowname "$wid" 2>/dev/null || echo '?')"
+title="${title:-?}"
 
 # --- current workspace ------------------------------------------------------
 #
@@ -101,16 +170,19 @@ if [ -z "$cur" ]; then
 fi
 
 if [ -z "$cur" ]; then
-    cur="$(desktop_of "$wid_dec")"
+    cur="$(desktop_of "$wid")"
     assumed=1
 fi
 
 # --- clear mode -------------------------------------------------------------
 
 if [ "$clear_flag" -eq 1 ]; then
-    xdotool windowstate --remove demands_attention "$wid_dec" || true
-    xdotool set_desktop_for_window "$wid_dec" "$cur" || true
+    xdotool windowstate --remove demands_attention "$wid" || true
+    xdotool set_desktop_for_window "$wid" "$cur" || true
     echo "cleared: \"$title\" no longer demands attention and is on workspace $((cur + 1))"
+    if xprop -id "$wid" WM_CLASS 2>/dev/null | grep -qi glxgears; then
+        echo "close the demo window with: pkill glxgears"
+    fi
     exit 0
 fi
 
@@ -126,7 +198,7 @@ if [ "$cur" -eq 0 ]; then other=1; else other=0; fi
 other_win=""
 for id in $(xprop -root _NET_CLIENT_LIST | grep -o '0x[0-9a-f]*'); do
     id_dec=$((id))
-    [ "$id_dec" -eq "$wid_dec" ] && continue
+    [ "$id_dec" -eq "$wid" ] && continue
     dsk="$(xprop -id "$id_dec" _NET_WM_DESKTOP 2>/dev/null | grep -o '[0-9]\+$' || echo -1)"
     if [ "$dsk" = "$cur" ]; then
         other_win="$id_dec"
@@ -142,12 +214,12 @@ else
     echo "      click any window on your workspace and run this again."
 fi
 
-xdotool set_desktop_for_window "$wid_dec" "$other" || die "could not move the window"
+xdotool set_desktop_for_window "$wid" "$other" || die "could not move the window"
 sleep 0.3
-xdotool windowstate --add demands_attention "$wid_dec" || die "could not set the flag"
+xdotool windowstate --add demands_attention "$wid" || die "could not set the flag"
 sleep 0.5
 
-state="$(xprop -id "$wid_dec" _NET_WM_STATE 2>/dev/null || true)"
+state="$(xprop -id "$wid" _NET_WM_STATE 2>/dev/null || true)"
 
 if [ -n "$assumed" ]; then
     cat <<EOF
