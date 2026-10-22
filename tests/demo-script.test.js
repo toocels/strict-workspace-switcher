@@ -6,7 +6,7 @@
 //     make test
 //     # or: gjs --module tests/demo-script.test.js
 //
-// No GNOME session is needed: the shell (global.display,
+// No GNOME session is needed: the shell (global.get_window_actors,
 // global.workspace_manager) is mocked and GLib/Meta are stubbed, so nothing is
 // really spawned and no mutter typelib has to be installed. The JS is read out
 // of the script itself, so this test also fails if the two drift apart.
@@ -59,8 +59,15 @@ const closeJs = heredoc('JS_CLEAR').replaceAll('__CLOSE__', 'yes');
 
 // The script passes each of these to `gdbus … Eval` as one single-quoted
 // GVariant string, with newlines stripped: quotes, backslashes and //-comments
-// would all be mangled on the way through.
-for (const [name, js] of [['JS_DEMO', demoJs], ['JS_CLEAR', clearJs]]) {
+// would all be mangled on the way through. The list is read out of the script,
+// so a new heredoc is checked too (and a renamed one is noticed here).
+const heredocNames = [...script.matchAll(/^read -r -d '' (\w+) <<'JS'/gm)].map(m => m[1]);
+
+for (const name of ['JS_DEMO', 'JS_CLEAR', 'JS_STATUS'])
+    ok(heredocNames.includes(name), `${name}: is one of the script's JS blocks`);
+
+for (const name of heredocNames) {
+    const js = heredoc(name);
     ok(js.length > 0, `${name}: found in the script`);
     ok(!js.includes("'"), `${name}: contains no single quotes (GVariant quoting)`);
     ok(!js.includes('\\'), `${name}: contains no backslashes (GVariant escaping)`);
@@ -104,7 +111,9 @@ function fakeShell({spawnOpensAWindow = true, windows = [], activeIndex = 0,
     };
 
     const global_ = {
-        display: {get_window_actors: () => actors},
+        // global.get_window_actors() is the shell's list of window actors -
+        // Meta.Display has no such method any more.
+        get_window_actors: () => actors,
         workspace_manager: {
             get_active_workspace: () => ({index: () => activeIndex}),
             n_workspaces: workspaceCount,

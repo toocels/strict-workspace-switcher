@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# A stand-in for gdbus, for tests/demo-cli.test.sh: it answers the way
+# org.gnome.Shell.Eval does (see js/ui/shellDBus.js in gnome-shell), so the
+# script under test can be driven without a GNOME session and without flipping
+# the shell's unsafe mode.
+#
+#     Eval <code>  ->  (true, '<JSON.stringify(await eval(code))>')
+#                  ->  (false, '<the error>')      if the code threw
+#                  ->  (false, '')                 if unsafe mode is off
+#
+# STUB_MODE picks the answer:
+#     ok (the default)   the code ran
+#     off                unsafe mode is off
+#     error              the code threw
+#
+# STUB_LOG, if set, gets one line per call: this is how the tests check what the
+# script asked for.
+
+set -uo pipefail
+
+if [ -n "${STUB_LOG:-}" ]; then
+    echo "$*" >> "$STUB_LOG"
+fi
+
+code="${!#}"   # the code is the last argument
+
+# unsafe mode off: every call is refused, including the probe below
+if [ "${STUB_MODE:-ok}" = "off" ]; then
+    cat <<'ANSWER'
+(false, '')
+ANSWER
+    exit 0
+fi
+
+# `Eval "'1'"` is the script's probe for whether unsafe mode is on. Nothing can
+# go wrong with `1`, so it is answered before the modes that simulate failure.
+case "$code" in
+    *"'1'"*)
+        cat <<'ANSWER'
+(true, '1')
+ANSWER
+        exit 0 ;;
+esac
+
+# unsafe mode is on, but the code threw
+if [ "${STUB_MODE:-ok}" = "error" ]; then
+    cat <<'ANSWER'
+(false, 'TypeError: this-broke is not a function')
+ANSWER
+    exit 0
+fi
+
+# unsafe mode is on and the code ran
+case "$code" in
+    *n_workspaces*)
+        cat <<'ANSWER'
+(true, '"workspace 1 of 3, 4 windows"')
+ANSWER
+        ;;
+    *spawn_command_line_async*)
+        cat <<'ANSWER'
+(true, '"window \"Demo Document\" - you are on workspace 1, it is on workspace 2, demands_attention=true"')
+ANSWER
+        ;;
+    *unset_demands_attention*)
+        cat <<'ANSWER'
+(true, '"undone for: Flagged Window"')
+ANSWER
+        ;;
+    *)
+        cat <<'ANSWER'
+(true, '1')
+ANSWER
+        ;;
+esac

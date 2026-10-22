@@ -105,7 +105,6 @@ read -r -d '' JS_DEMO <<'JS' || true
 (async () => {
     const GLib = imports.gi.GLib;
     const Meta = imports.gi.Meta;
-    const display = global.display;
     const manager = global.workspace_manager;
 
     const sleep = ms => new Promise(resolve => {
@@ -117,10 +116,11 @@ read -r -d '' JS_DEMO <<'JS' || true
 
     /* build quotes with fromCharCode: a literal one cannot be sent to the shell */
     const quote = String.fromCharCode(39);
-    const clean = s => s.split(quote).join("");
+    const slash = String.fromCharCode(92);
+    const clean = s => s.split(quote).join("").split(slash).join("");
 
     let window = null;
-    const existing = display.get_window_actors()
+    const existing = global.get_window_actors()
         .map(actor => actor.meta_window)
         .filter(win => win.get_title() && !win.is_skip_taskbar() &&
                        win.get_window_type() === Meta.WindowType.NORMAL);
@@ -130,7 +130,7 @@ read -r -d '' JS_DEMO <<'JS' || true
 
     for (let i = 0; i < 60 && !window; i++) {
         await sleep(250);
-        window = display.get_window_actors()
+        window = global.get_window_actors()
             .map(actor => actor.meta_window)
             .find(win => !before.has(win) && win.get_title() &&
                          win.get_window_type() === Meta.WindowType.NORMAL);
@@ -161,15 +161,19 @@ JS
 
 read -r -d '' JS_CLEAR <<'JS' || true
 (async () => {
-    const display = global.display;
     const active = global.workspace_manager.get_active_workspace();
     const done = [];
 
-    display.get_window_actors().map(actor => actor.meta_window).forEach(win => {
+    /* do not send single quotes or backslashes back through gdbus */
+    const quote = String.fromCharCode(39);
+    const slash = String.fromCharCode(92);
+    const clean = s => s.split(quote).join("").split(slash).join("");
+
+    global.get_window_actors().map(actor => actor.meta_window).forEach(win => {
         if (win.demands_attention && !win.located_on_workspace(active)) {
             win.unset_demands_attention();
             win.change_workspace_by_index(active.index(), true);
-            done.push(win.get_title());
+            done.push(clean(win.get_title()));
             if ("__CLOSE__" === "yes")
                 win.delete(global.get_current_time());
         }
@@ -182,6 +186,12 @@ read -r -d '' JS_CLEAR <<'JS' || true
 })()
 JS
 
+read -r -d '' JS_STATUS <<'JS' || true
+"workspace " + (global.workspace_manager.get_active_workspace().index() + 1) +
+    " of " + global.workspace_manager.n_workspaces + ", " +
+    global.get_window_actors().length + " windows"
+JS
+
 # --- shell evaluation -------------------------------------------------------
 
 one_line() { tr -d '\n' <<< "$1"; }
@@ -191,7 +201,17 @@ eval_ready() {
             --method "$SHELL_IFACE.Eval" "'1'" 2>/dev/null || true)" = "(true, '1')" ]
 }
 
-shell_eval() {                        # prints the raw result string
+# Eval hands back JSON.stringify(<the value>), so a returned string arrives
+# double-quoted, with the double quotes inside it escaped: undo both.
+unjson() {
+    local s="$1"
+    s="${s#\"}"
+    s="${s%\"}"
+    s="${s//\\\"/\"}"
+    printf '%s\n' "$s"
+}
+
+shell_eval() {                        # prints the result, as the shell sent it
     local out
     out="$(gdbus call --session --dest "$SHELL_BUS" --object-path "$SHELL_PATH" \
               --method "$SHELL_IFACE.Eval" "'$(one_line "$1")'" 2>&1)" ||
@@ -206,7 +226,7 @@ shell_eval() {                        # prints the raw result string
         die "the shell reported an error: ${out:9:-2}"
     fi
 
-    printf '%s\n' "${out:8:-2}"
+    unjson "${out:8:-2}"
 }
 
 need_unsafe_mode() {
@@ -270,8 +290,9 @@ esac
 done
 [ -n "$app" ] || die "no demo app found - pass --app CMD"
 
-# a quick sanity line, so a failure to reach the shell is obvious
-echo "shell: $(shell_eval '"workspace " + (global.workspace_manager.get_active_workspace().index() + 1) + " of " + global.workspace_manager.n_workspaces + ", " + global.display.get_window_actors().length + " windows"' 2>/dev/null || echo "?")"
+# a quick sanity line: it doubles as a diagnostic, so an error here is shown
+sanity="$(shell_eval "$JS_STATUS" 2>&1)" || true
+echo "shell: ${sanity:-no answer from the shell}"
 echo "opening: $app"
 
 js="${JS_DEMO//__APP__/$app}"
