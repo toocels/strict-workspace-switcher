@@ -296,6 +296,10 @@ metadata.json                     extension metadata (uuid, shell-version)
 extension.js                      enable/disable, installs the wrapper
 tabListFilter.js                  the filtering logic (no GNOME imports -> unit-tested)
 tests/tab-list-filter.test.js     unit tests, no session or display needed
+tests/demo-script.test.js         runs the demo's JS against a mocked shell
+tests/demo-cli.test.sh            drives the demo script with a stub gdbus
+tests/shell-api.test.js           checks the demo's API names against mutter's typelib
+tests/stub-bin/gdbus              the stand-in gdbus the script test uses
 tools/demo-attention-window.sh    opens a window on another workspace and flags it
 install.sh / uninstall.sh         install and remove for the current user
 Makefile                          install / pack / test / check / demo / uninstall
@@ -313,6 +317,15 @@ The tests feed the wrapper a mocked tab list shaped exactly like mutter's — th
 workspace's own MRU list plus the attention windows it prepends — and pin down
 the contract: other workspaces gone, sticky windows kept, order preserved,
 `this`/arguments forwarded, *all workspaces* mode untouched, wrappers chain.
+
+The demo script is tested from both ends: `tests/demo-script.test.js` runs its JS
+against a mocked shell (which window it picks, where it moves it, what it
+reports), and `tests/demo-cli.test.sh` drives the script itself with a stub
+`gdbus` that answers exactly the way `Eval` does — including the JSON string the
+shell hands back, which is easy to get wrong and silent when you do.
+`tests/shell-api.test.js` checks every API the JS uses against mutter's `Meta`
+typelib, so a renamed or non-existent method fails here instead of in a live
+session; it skips itself, with a note, if the typelib is not installed.
 
 If you add more JS modules, list them in `EXTRA` in the Makefile:
 `gnome-extensions pack` only packages known filenames plus `--extra-source`
