@@ -105,21 +105,43 @@ gsettings get org.gnome.desktop.wm.keybindings switch-applications
 
 ## Verify it works
 
-**1. Make a window on another workspace demand attention.** In Looking Glass
-(`Alt+F2`, type `lg`, `Enter`):
+No process outside the shell can set the attention flag on a Wayland window — the
+compositor owns it — so both ways below ask GNOME Shell itself to do it: open a
+window on another workspace, flag it, and say what happened.
+
+### With the script
+
+```bash
+tools/demo-attention-window.sh            # open a window on another workspace, flag it
+tools/demo-attention-window.sh --stock    # disable the extension and look again
+tools/demo-attention-window.sh --strict   # enable the extension again
+tools/demo-attention-window.sh --clear    # drop the flag, bring the window back
+```
+
+The first run asks for one thing: GNOME Shell only runs code from outside against
+its windows while its own *unsafe mode* is on. Press `Alt+F2`, type `lg`,
+`Enter`, flip the **unsafe-mode** switch in the Evaluator tab, and close Looking
+Glass. It lasts for the rest of the login, and the shell shows a *“System was put
+in unsafe mode”* notification while it is on, with an Undo action. The script
+waits for the switch and then does the rest.
+
+### By hand, in Looking Glass
+
+`Alt+F2`, type `lg`, `Enter`, Evaluator tab. This borrows a window of your own,
+so open one first if the session is empty:
 
 ```js
 let w = global.get_window_actors().map(a => a.meta_window)
-    .find(w => !w.is_skip_taskbar() && w.get_title());
+    .find(w => !w.is_skip_taskbar() && !w.is_on_all_workspaces() && w.get_title());
 w.change_workspace_by_index(1, true);   // send it to workspace 2
 w.activate(0);                          // timestamp 0 + other workspace -> demands attention
-w.demands_attention                     // -> true
+w.demands_attention;                    // -> true
 ```
 
-This is the only way to do it from outside: no other process can set the
-attention flag on a Wayland window, the compositor owns it.
+`tools/demo-attention-window.sh --snippet` prints a longer version of this that
+opens its own window instead of borrowing one.
 
-**2. Press Alt+Tab without leaving your workspace.**
+### Then press Alt+Tab, without leaving your workspace
 
 - Extension **enabled**: the window is not in the list.
 - Extension **disabled**: it is in the list, first — the stock behaviour.
@@ -129,9 +151,8 @@ gnome-extensions disable strict-workspace-switcher@toocels   # looks like stock 
 gnome-extensions enable  strict-workspace-switcher@toocels   # strict again
 ```
 
-Enable/disable is instant, so you can A/B it live. When you are done, clear the
-flag again with `w.activate(global.get_current_time())` — focusing a window
-always clears it.
+Enable/disable is instant, so you can A/B it live. Focusing the window clears the
+flag again, or `tools/demo-attention-window.sh --clear`.
 
 ---
 
@@ -275,8 +296,9 @@ metadata.json                     extension metadata (uuid, shell-version)
 extension.js                      enable/disable, installs the wrapper
 tabListFilter.js                  the filtering logic (no GNOME imports -> unit-tested)
 tests/tab-list-filter.test.js     unit tests, no session or display needed
+tools/demo-attention-window.sh    opens a window on another workspace and flags it
 install.sh / uninstall.sh         install and remove for the current user
-Makefile                          install / pack / test / check / uninstall
+Makefile                          install / pack / test / check / demo / uninstall
 ```
 
 ```bash
@@ -284,6 +306,7 @@ make check      # validate metadata.json
 make test       # run the unit tests (gjs, no GNOME session needed)
 make install    # copy into ~/.local/share/gnome-shell/extensions
 make pack       # build the .shell-extension.zip
+make demo       # reproduce the bug interactively (see "Verify it works")
 ```
 
 The tests feed the wrapper a mocked tab list shaped exactly like mutter's — the
