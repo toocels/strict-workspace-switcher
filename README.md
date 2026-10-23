@@ -106,7 +106,7 @@ gsettings get org.gnome.desktop.wm.keybindings switch-applications
 ## Verify it works
 
 No process outside the shell can set the attention flag on a Wayland window — the
-compositor owns it — so both ways below ask GNOME Shell itself to do it: open a
+compositor owns it — so the script below asks GNOME Shell itself to do it: open a
 window on another workspace, flag it, and say what happened.
 
 ### With the script
@@ -132,33 +132,22 @@ Alt+Tab and then not; `--clear` drops the flag and moves the window back without
 switching to it; `--app CMD` uses another app for the demo window; `--snippet`
 prints the Looking Glass version instead of running it; `--help` lists them all.
 
-### By hand, in Looking Glass
-
-`Alt+F2`, type `lg`, `Enter`, Evaluator tab. This borrows a window of your own,
-so open one first if the session is empty:
-
-```js
-let w = global.get_window_actors().map(a => a.meta_window)
-    .find(w => !w.is_skip_taskbar() && !w.is_on_all_workspaces() && w.get_title());
-w.change_workspace_by_index(1, true);   // send it to workspace 2
-w.activate(0);                          // timestamp 0 + other workspace -> demands attention
-w.demands_attention;                    // -> true
-```
-
-`tools/demo-attention-window.sh --snippet` prints a longer version of this that
-opens its own window instead of borrowing one.
-
 ### Then press Alt+Tab, without leaving your workspace
 
-- Extension **enabled**: the window is not in the list.
-- Extension **disabled**: it is in the list, first — the stock behaviour.
+Run the script once as it is, then again with the extension disabled, and press
+Alt+Tab each time:
 
 ```bash
-gnome-extensions disable strict-workspace-switcher@toocels   # looks like stock GNOME
+tools/demo-attention-window.sh                               # extension enabled
+gnome-extensions disable strict-workspace-switcher@toocels
+tools/demo-attention-window.sh                               # extension disabled
 gnome-extensions enable  strict-workspace-switcher@toocels   # strict again
 ```
 
-Enable/disable is instant, so you can A/B it live. Focusing the window clears the
+- With the extension **enabled**: the window is not in the list.
+- With the extension **disabled**: it is in the list, first — the stock behaviour.
+
+Enable/disable is instant, so you can A/B it live. Going to the window clears the
 flag again, or `tools/demo-attention-window.sh --clear`.
 
 ---
@@ -293,50 +282,6 @@ always-on-top dashboards) are on your workspace too, so they are kept.
 
 Your GNOME switcher settings are left exactly as they were — they belong to you,
 not to the extension.
-
----
-
-## Development
-
-```
-metadata.json                     extension metadata (uuid, shell-version)
-extension.js                      enable/disable, installs the wrapper
-tabListFilter.js                  the filtering logic (no GNOME imports -> unit-tested)
-tests/tab-list-filter.test.js     unit tests, no session or display needed
-tests/demo-script.test.js         runs the demo's JS against a mocked shell
-tests/demo-cli.test.sh            drives the demo script with a stub gdbus
-tests/shell-api.test.js           checks the demo's API names against mutter's typelib
-tests/stub-bin/gdbus              the stand-in gdbus the script test uses
-tools/demo-attention-window.sh    opens a window on another workspace and flags it
-install.sh / uninstall.sh         install and remove for the current user
-Makefile                          install / pack / test / check / demo / uninstall
-```
-
-```bash
-make check      # validate metadata.json
-make test       # run the unit tests (gjs, no GNOME session needed)
-make install    # copy into ~/.local/share/gnome-shell/extensions
-make pack       # build the .shell-extension.zip
-make demo       # reproduce the bug interactively (see "Verify it works")
-```
-
-The tests feed the wrapper a mocked tab list shaped exactly like mutter's — the
-workspace's own MRU list plus the attention windows it prepends — and pin down
-the contract: other workspaces gone, sticky windows kept, order preserved,
-`this`/arguments forwarded, *all workspaces* mode untouched, wrappers chain.
-
-The demo script is tested from both ends: `tests/demo-script.test.js` runs its JS
-against a mocked shell (which window it picks, where it moves it, what it
-reports), and `tests/demo-cli.test.sh` drives the script itself with a stub
-`gdbus` that answers exactly the way `Eval` does — including the JSON string the
-shell hands back, which is easy to get wrong and silent when you do.
-`tests/shell-api.test.js` checks every API the JS uses against mutter's `Meta`
-typelib, so a renamed or non-existent method fails here instead of in a live
-session; it skips itself, with a note, if the typelib is not installed.
-
-If you add more JS modules, list them in `EXTRA` in the Makefile:
-`gnome-extensions pack` only packages known filenames plus `--extra-source`
-entries, and a missing module means a silently broken extension after install.
 
 ---
 
