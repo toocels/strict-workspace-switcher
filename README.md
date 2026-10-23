@@ -112,11 +112,12 @@ window on another workspace, flag it, and say what happened.
 ### With the script
 
 ```bash
-tools/demo-attention-window.sh            # open a window on another workspace, flag it
-tools/demo-attention-window.sh --stock    # disable the extension and look again
-tools/demo-attention-window.sh --strict   # enable the extension again
-tools/demo-attention-window.sh --clear    # drop the flag, bring the window back
+tools/demo-attention-window.sh
 ```
+
+That is all of it: the script opens a window, moves it to your other workspace,
+and makes it demand attention. Nothing to pass and nothing to clean up by hand —
+going to that window clears the flag again on its own.
 
 The first run asks for one thing: GNOME Shell only runs code from outside against
 its windows while its own *unsafe mode* is on. Press `Alt+F2`, type `lg`,
@@ -124,6 +125,12 @@ its windows while its own *unsafe mode* is on. Press `Alt+F2`, type `lg`,
 Glass. It lasts for the rest of the login, and the shell shows a *“System was put
 in unsafe mode”* notification while it is on, with an Undo action. The script
 waits for the switch and then does the rest.
+
+There are a few optional flags, for when you want them: `--stock` and `--strict`
+disable and re-enable the extension, so you can watch the same window appear in
+Alt+Tab and then not; `--clear` drops the flag and moves the window back without
+switching to it; `--app CMD` uses another app for the demo window; `--snippet`
+prints the Looking Glass version instead of running it; `--help` lists them all.
 
 ### By hand, in Looking Glass
 
