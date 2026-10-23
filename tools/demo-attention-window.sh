@@ -308,8 +308,7 @@ case "$result" in
         echo "  * extension enabled  -> that window is NOT in the list"
         echo "  * extension disabled -> it is the first entry (stock behaviour)"
         echo
-        echo "  $0 --stock     disable the extension and look again"
-        echo "  $0 --strict    enable it again"
-        echo "  $0 --clear     drop the flag and bring the window back"
+        echo "Going to that window clears the flag again, and --clear does it"
+        echo "without switching. --help lists the rest."
         ;;
 esac

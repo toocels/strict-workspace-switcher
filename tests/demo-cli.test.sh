@@ -80,7 +80,7 @@ has "demo: says which app it is opening" "opening: demo-app"
 has "demo: prints the result unquoted and unescaped" \
     'window "Demo Document" - you are on workspace 1, it is on workspace 2, demands_attention=true'
 has "demo: explains what Alt+Tab should show" "extension enabled  -> that window is NOT in the list"
-has "demo: offers --stock" "$script --stock"
+has "demo: says how to undo it without switching" "--clear"
 case "$(sent_code)" in
     *global.get_window_actors*) pass "demo: sends code that uses global.get_window_actors" ;;
     *) fail "demo: sends code that uses global.get_window_actors"
