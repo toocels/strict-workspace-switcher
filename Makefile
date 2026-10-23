@@ -5,7 +5,7 @@
 #   make uninstall  remove the installed copy (same as ./uninstall.sh)
 #   make pack       build dist/<uuid>.shell-extension.zip (for extensions.gnome.org
 #                   or `gnome-extensions install`)
-#   make test       run the unit tests (gjs, no session needed)
+#   make test       run the unit tests (no GNOME session needed)
 #   make check      sanity-check metadata.json
 #   make demo       open a window on another workspace and make it demand
 #                   attention, for trying the extension out (see the README)
