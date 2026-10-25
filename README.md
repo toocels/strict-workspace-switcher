@@ -2,6 +2,8 @@
 
 **Alt+Tab that respects your workspaces — for real.**
 
+![The GNOME app switcher](docs/app-switcher.png)
+
 ![GNOME Shell](https://img.shields.io/badge/GNOME%20Shell-45%E2%80%9351-blue)
 ![License](https://img.shields.io/badge/license-GPL--3.0--or--later-green)
 
